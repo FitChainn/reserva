@@ -50,16 +50,6 @@ public class ReservaController {
         return ResponseEntity.ok(reservaService.actualizar(id, requestDTO));
     }
 
-    @PatchMapping("/{id}/confirmar")
-    public ResponseEntity<ReservaResponseDTO> confirmar(@PathVariable Long id) {
-        return ResponseEntity.ok(reservaService.confirmar(id));
-    }
-
-    @PatchMapping("/{id}/cancelar")
-    public ResponseEntity<ReservaResponseDTO> cancelar(@PathVariable Long id) {
-        return ResponseEntity.ok(reservaService.cancelar(id));
-    }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         reservaService.eliminar(id);

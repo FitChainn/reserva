@@ -109,32 +109,6 @@ public class ReservaService {
         return toResponseDTO(actualizada, cliente, horario);
     }
 
-    public ReservaResponseDTO confirmar(Long id) {
-        log.info("Confirmando reserva con id {}", id);
-        Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Reserva con id " + id + " no encontrada"));
-
-        reserva.setEstado("CONFIRMADA");
-        Reserva confirmada = reservaRepository.save(reserva);
-        log.info("Reserva {} confirmada", id);
-        return toResponseDTO(confirmada,
-                clienteClient.obtenerClientePorId(confirmada.getClienteId()),
-                horarioClient.obtenerHorarioPorId(confirmada.getHorarioId()));
-    }
-
-    public ReservaResponseDTO cancelar(Long id) {
-        log.info("Cancelando reserva con id {}", id);
-        Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Reserva con id " + id + " no encontrada"));
-
-        reserva.setEstado("CANCELADA");
-        Reserva cancelada = reservaRepository.save(reserva);
-        log.info("Reserva {} cancelada", id);
-        return toResponseDTO(cancelada,
-                clienteClient.obtenerClientePorId(cancelada.getClienteId()),
-                horarioClient.obtenerHorarioPorId(cancelada.getHorarioId()));
-    }
-
     public void eliminar(Long id) {
         log.info("Eliminando reserva con id {}", id);
         if (!reservaRepository.existsById(id)) {
