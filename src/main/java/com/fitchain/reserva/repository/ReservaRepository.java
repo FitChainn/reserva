@@ -11,7 +11,5 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     List<Reserva> findByClienteId(Long clienteId);
 
-    List<Reserva> findByHorarioId(Long horarioId);
-
     List<Reserva> findByEstado(String estado);
 }
