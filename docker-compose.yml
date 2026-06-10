@@ -1,0 +1,6 @@
+services:
+  reserva:
+    build: .
+    ports:
+      - "8087:8087"
+    restart: unless-stopped
