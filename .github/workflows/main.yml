@@ -17,7 +17,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Compilar proyecto
-        run: ./mvnw clean package -DskipTests
+        run: mvn clean package -DskipTests
 
       - name: Crear carpeta en AWS
         uses: appleboy/ssh-action@v1
