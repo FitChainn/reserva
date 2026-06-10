@@ -24,12 +24,12 @@ public class ReservaController {
 
     private final ReservaService reservaService;
 
-    @Operation(summary = "CREAR RESERVA", description = "Crea una nueva reserva. Acceso: ADMIN, CLIENTE")
+    @Operation(summary = "CREAR RESERVA", description = "CREAR UNA NUEVA RESERVA. ACCESO: ADMIN, CLIENTE")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Reserva creada exitosamente"),
-            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
-            @ApiResponse(responseCode = "404", description = "Cliente o Horario no encontrado"),
-            @ApiResponse(responseCode = "503", description = "Microservicio no disponible")
+            @ApiResponse(responseCode = "201", description = "RESERVA CREADA EXITOSAMENTE"),
+            @ApiResponse(responseCode = "400", description = "DATOS INVÁLIDOS"),
+            @ApiResponse(responseCode = "404", description = "CLIENTE O HORARIO NO ENCONTRADO"),
+            @ApiResponse(responseCode = "503", description = "MICROSERVICIO NO DISPONIBLE")
     })
     @PreAuthorize("hasAnyRole('ADMIN', 'CLIENTE')")
     @PostMapping

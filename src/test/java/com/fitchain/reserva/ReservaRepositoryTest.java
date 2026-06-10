@@ -14,14 +14,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
-
 public class ReservaRepositoryTest {
     @Autowired
     private ReservaRepository repo;
 
     @Autowired
     private TestEntityManager em; // helper jpa
-
 
     @Test
     void findById_ShouldReturnReserva(){
