@@ -13,10 +13,10 @@ jobs:
       - name: Crear carpeta en AWS
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{secrets.IP_SERVER}}
-          username: ${{secrets.USERNAME}}
-          key: ${{secrets.KEY}}
-          port: ${{secrets.PORT}}}
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
           script: |
                   mkdir -p /home/ubuntu/java
 
