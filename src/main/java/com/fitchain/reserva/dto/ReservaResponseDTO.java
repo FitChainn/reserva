@@ -13,7 +13,6 @@ public class ReservaResponseDTO {
     private LocalDate fecha;
     private LocalTime hora;
     private String estado;
-
     private ClienteDTO cliente;
     private HorarioDTO horario;
 }
