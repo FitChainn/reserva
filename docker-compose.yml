@@ -6,13 +6,19 @@ services:
       MYSQL_DATABASE: db_fitchain
     ports:
       - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   reserva:
     build: .
     ports:
       - "8087:8087"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/db_fitchain
       SPRING_DATASOURCE_USERNAME: root
