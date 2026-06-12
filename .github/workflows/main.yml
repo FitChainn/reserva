@@ -16,7 +16,7 @@ jobs:
           host: ${{secrets.IP_SERVER}}
           username: ${{secrets.USERNAME}}
           key: ${{secrets.KEY}}
-          port: ${{secrets.PORT}}}
+          port: ${{secrets.PORT}}
           script: |
                   mkdir -p /home/ubuntu/java
 
@@ -38,7 +38,7 @@ jobs:
           host: ${{secrets.IP_SERVER}}
           username: ${{secrets.USERNAME}}
           key: ${{secrets.KEY}}
-          port: ${{secrets.PORT}}}
+          port: ${{secrets.PORT}}
           script: |
                   cd /home/ubuntu/java
                   docker compose down
