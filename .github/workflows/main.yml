@@ -18,7 +18,7 @@ jobs:
           key: ${{secrets.KEY}}
           port: ${{secrets.PORT}}
           script: |
-                  mkdir -p /home/ubuntu/java
+                  mkdir -p /home/ubuntu/java/reserva
 
       - name : Sincronizar proyecto en el servidor
         uses: burnett01/rsync-deployments@v8
@@ -27,7 +27,7 @@ jobs:
           path: './'
           remote_host: ${{secrets.IP_SERVER}}
           remote_user: ${{secrets.USERNAME}}
-          remote_path: "/home/ubuntu/java"
+          remote_path: "/home/ubuntu/java/reserva"
           remote_key: ${{secrets.KEY}}
           remote_port: ${{secrets.PORT}}
 
@@ -40,6 +40,6 @@ jobs:
           key: ${{secrets.KEY}}
           port: ${{secrets.PORT}}
           script: |
-                  cd /home/ubuntu/java
+                  cd /home/ubuntu/java/
                   docker compose down
                   docker compose up -d --build
