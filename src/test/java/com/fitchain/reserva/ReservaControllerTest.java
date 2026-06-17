@@ -7,6 +7,7 @@ import com.fitchain.reserva.dto.ReservaRequestDTO;
 import com.fitchain.reserva.dto.ReservaResponseDTO;
 import com.fitchain.reserva.service.ReservaService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -35,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 //test: a mano
 @WebMvcTest(ReservaController.class)
 @Import({SecurityConfig.class, RolHeaderFilter.class})
+@DisplayName("PRUEBAS UNITARIAS DEL CONTROLLER DE RESERVAS")
 public class ReservaControllerTest {
 
     @Autowired
@@ -135,7 +137,7 @@ public class ReservaControllerTest {
 
     //obtener por estado
     @Test
-    void GET_obtenerPorEstado_returns200() throws Exception {
+    void GET_obtenerPorEstado() throws Exception {
         when(reservaService.obtenerPorEstado("PENDIENTE")).thenReturn(List.of(rResponse));
 
         mockMvc.perform(get("/v1/reservas/estado/PENDIENTE")
