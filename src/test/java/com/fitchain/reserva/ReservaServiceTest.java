@@ -49,16 +49,16 @@ public class ReservaServiceTest {
     private ReservaRequestDTO rRequest;
 
     @BeforeEach
-    void setUp(){
-        r = new Reserva(1L, 2L, 1L, "YOGA", LocalDate.now(), LocalTime.of(9,0), "PENDIENTE");
-        clienteDTO = new ClienteDTO(2L, "JUANITO PEREZ", "12.123.431-2", LocalDate.of(1995,5,10), 3L, 4L);
-        horarioDTO = new HorarioDTO(1L, LocalTime.of(9,0), LocalTime.of(10,0));
-        rRequest = new ReservaRequestDTO(2L, 1L, "YOGA", LocalDate.now(), LocalTime.of(9,0));
+    void setUp() {
+        r = new Reserva(1L, 2L, 1L, "YOGA", LocalDate.now(), LocalTime.of(9, 0), "PENDIENTE");
+        clienteDTO = new ClienteDTO(2L, "JUANITO PEREZ", "12.123.431-2", LocalDate.of(1995, 5, 10), 3L, 4L);
+        horarioDTO = new HorarioDTO(1L, LocalTime.of(9, 0), LocalTime.of(10, 0));
+        rRequest = new ReservaRequestDTO(2L, 1L, "YOGA", LocalDate.now(), LocalTime.of(9, 0));
     }
 
     @Test
     @DisplayName("DEBE CREAR UNA RESERVA")
-    void shouldCrearReserva(){
+    void shouldCrearReserva() {
         when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
         when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
         when(reservaRepo.save(any(Reserva.class))).thenReturn(r);
@@ -75,8 +75,8 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE RETORNAR TODAS LAS RESERVAS")
-    void shouldReturnTodasLasReservas(){
-        Reserva r2 = new Reserva(2L, 2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10,0), "CONFIRMADA");
+    void shouldReturnTodasLasReservas() {
+        Reserva r2 = new Reserva(2L, 2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10, 0), "CONFIRMADA");
         when(reservaRepo.findAll()).thenReturn(List.of(r, r2));
         when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
         when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
@@ -91,7 +91,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE RETORNAR UNA RESERVA POR ID")
-    void shouldReturnReservaById(){
+    void shouldReturnReservaById() {
         when(reservaRepo.findById(1L)).thenReturn(Optional.of(r));
         when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
         when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
@@ -106,7 +106,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE LANZAR EXCEPCION SI RESERVA NO EXISTE POR ID")
-    void shouldThrowWhenReservaNotFoundById(){
+    void shouldThrowWhenReservaNotFoundById() {
         when(reservaRepo.findById(99L)).thenReturn(Optional.empty());
 
         NoSuchElementException ex = assertThrows(NoSuchElementException.class,
@@ -117,7 +117,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE RETORNAR RESERVAS POR CLIENTE")
-    void shouldReturnReservasByCliente(){
+    void shouldReturnReservasByCliente() {
         when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
         when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
         when(reservaRepo.findByClienteId(2L)).thenReturn(List.of(r));
@@ -132,7 +132,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE RETORNAR LISTA VACIA SI CLIENTE NO TIENE RESERVAS")
-    void shouldReturnEmptyListWhenClienteHasNoReservas(){
+    void shouldReturnEmptyListWhenClienteHasNoReservas() {
         when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
         when(reservaRepo.findByClienteId(2L)).thenReturn(List.of());
 
@@ -143,7 +143,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE RETORNAR RESERVAS POR ESTADO")
-    void shouldReturnReservasByEstado(){
+    void shouldReturnReservasByEstado() {
         when(reservaRepo.findByEstado("PENDIENTE")).thenReturn(List.of(r));
         when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
         when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
@@ -157,7 +157,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE RETORNAR LISTA VACIA SI NO HAY RESERVAS CON ESE ESTADO")
-    void shouldReturnEmptyListWhenNoReservasWithEstado(){
+    void shouldReturnEmptyListWhenNoReservasWithEstado() {
         when(reservaRepo.findByEstado("CANCELADA")).thenReturn(List.of());
 
         List<ReservaResponseDTO> result = reservaService.obtenerPorEstado("CANCELADA");
@@ -167,9 +167,9 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE ACTUALIZAR UNA RESERVA")
-    void shouldActualizarReserva(){
-        ReservaRequestDTO updateReq = new ReservaRequestDTO(2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10,0));
-        Reserva actualizada = new Reserva(1L, 2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10,0), "PENDIENTE");
+    void shouldActualizarReserva() {
+        ReservaRequestDTO updateReq = new ReservaRequestDTO(2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10, 0));
+        Reserva actualizada = new Reserva(1L, 2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10, 0), "PENDIENTE");
 
         when(reservaRepo.findById(1L)).thenReturn(Optional.of(r));
         when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
@@ -186,7 +186,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE LANZAR EXCEPCION AL ACTUALIZAR RESERVA QUE NO EXISTE")
-    void shouldThrowWhenActualizarReservaNotFound(){
+    void shouldThrowWhenActualizarReservaNotFound() {
         when(reservaRepo.findById(99L)).thenReturn(Optional.empty());
 
         NoSuchElementException ex = assertThrows(NoSuchElementException.class,
@@ -197,7 +197,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE ELIMINAR UNA RESERVA")
-    void shouldEliminarReserva(){
+    void shouldEliminarReserva() {
         when(reservaRepo.existsById(1L)).thenReturn(true);
 
         reservaService.eliminar(1L);
@@ -208,7 +208,7 @@ public class ReservaServiceTest {
 
     @Test
     @DisplayName("DEBE LANZAR EXCEPCION AL ELIMINAR RESERVA QUE NO EXISTE")
-    void shouldThrowWhenEliminarReservaNotFound(){
+    void shouldThrowWhenEliminarReservaNotFound() {
         when(reservaRepo.existsById(99L)).thenReturn(false);
 
         NoSuchElementException ex = assertThrows(NoSuchElementException.class,
