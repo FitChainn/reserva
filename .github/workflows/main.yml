@@ -1,4 +1,4 @@
-name: proyecto_fitchain
+name: proyecto_fitchain_reservas
 on:
   push:
     branches:
@@ -42,4 +42,4 @@ jobs:
           script: |
                   cd /home/ubuntu/java/
                   docker compose down
-                  docker compose up -d --build
+                  docker compose up -d --build reserva
