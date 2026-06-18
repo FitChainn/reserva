@@ -36,11 +36,33 @@ public class ReservaService {
         return dto;
     }
 
-    public ReservaResponseDTO crear(ReservaRequestDTO requestDTO) {
-        log.info("Creando reserva para clienteId {}", requestDTO.getClienteId());
+    private ClienteDTO obtenerCliente(Long clienteId) {
+        try {
+            ClienteDTO cliente = clienteClient.obtenerClientePorId(clienteId);
+            log.info("CLIENTE CON ID {} VALIDADO CORRECTAMENTE", clienteId);
+            return cliente;
+        } catch (Exception e) {
+            log.warn("NO SE PUDO OBTENER EL CLIENTE CON ID {}: {}", clienteId, e.getMessage());
+            throw e;
+        }
+    }
 
-        ClienteDTO cliente = clienteClient.obtenerClientePorId(requestDTO.getClienteId());
-        HorarioDTO horario = horarioClient.obtenerHorarioPorId(requestDTO.getHorarioId());
+    private HorarioDTO obtenerHorario(Long horarioId) {
+        try {
+            HorarioDTO horario = horarioClient.obtenerHorarioPorId(horarioId);
+            log.info("HORARIO CON ID {} VALIDADO CORRECTAMENTE", horarioId);
+            return horario;
+        } catch (Exception e) {
+            log.warn("NO SE PUDO OBTENER EL HORARIO CON ID {}: {}", horarioId, e.getMessage());
+            throw e;
+        }
+    }
+
+    public ReservaResponseDTO crear(ReservaRequestDTO requestDTO) {
+        log.info("CREANDO RESERVA PARA clienteId={}, horarioId={}", requestDTO.getClienteId(), requestDTO.getHorarioId());
+
+        ClienteDTO cliente = obtenerCliente(requestDTO.getClienteId());
+        HorarioDTO horario = obtenerHorario(requestDTO.getHorarioId());
 
         Reserva reserva = new Reserva();
         reserva.setClienteId(requestDTO.getClienteId());
@@ -51,12 +73,12 @@ public class ReservaService {
         reserva.setEstado("PENDIENTE");
 
         Reserva guardada = reservaRepository.save(reserva);
-        log.info("Reserva creada con id {}", guardada.getId());
+        log.info("RESERVA CREADA EXITOSAMENTE CON ID: {}", guardada.getId());
         return toResponseDTO(guardada, cliente, horario);
     }
 
     public List<ReservaResponseDTO> obtenerTodas() {
-        log.info("Obteniendo todas las reservas");
+        log.info("LISTANDO TODAS LAS RESERVAS");
         return reservaRepository.findAll().stream()
                 .map(r -> toResponseDTO(r,
                         clienteClient.obtenerClientePorId(r.getClienteId()),
@@ -65,24 +87,25 @@ public class ReservaService {
     }
 
     public ReservaResponseDTO obtenerPorId(Long id) {
-        log.info("Buscando reserva con id {}", id);
+        log.info("BUSCANDO RESERVA CON ID: {}", id);
         Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Reserva con id " + id + " no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("RESERVA CON EL ID " + id + " NO ENCONTRADA"));
+        log.info("RESERVA CON ID {} ENCONTRADA", id);
         return toResponseDTO(reserva,
                 clienteClient.obtenerClientePorId(reserva.getClienteId()),
                 horarioClient.obtenerHorarioPorId(reserva.getHorarioId()));
     }
 
     public List<ReservaResponseDTO> obtenerPorCliente(Long clienteId) {
-        log.info("Buscando reservas del cliente {}", clienteId);
-        ClienteDTO cliente = clienteClient.obtenerClientePorId(clienteId);
+        log.info("BUSCANDO RESERVAS DEL CLIENTE CON ID: {}", clienteId);
+        ClienteDTO cliente = obtenerCliente(clienteId);
         return reservaRepository.findByClienteId(clienteId).stream()
                 .map(r -> toResponseDTO(r, cliente, horarioClient.obtenerHorarioPorId(r.getHorarioId())))
                 .toList();
     }
 
     public List<ReservaResponseDTO> obtenerPorEstado(String estado) {
-        log.info("Buscando reservas con estado {}", estado);
+        log.info("BUSCANDO RESERVAS CON ESTADO: {}", estado);
         return reservaRepository.findByEstado(estado).stream()
                 .map(r -> toResponseDTO(r,
                         clienteClient.obtenerClientePorId(r.getClienteId()),
@@ -91,12 +114,12 @@ public class ReservaService {
     }
 
     public ReservaResponseDTO actualizar(Long id, ReservaRequestDTO requestDTO) {
-        log.info("Actualizando reserva con id {}", id);
+        log.info("ACTUALIZANDO RESERVA CON ID: {}", id);
         Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Reserva con id " + id + " no encontrada"));
+                .orElseThrow(() -> new NoSuchElementException("RESERVA CON EL ID " + id + " NO HA SIDO ENCONTRADA"));
 
-        ClienteDTO cliente = clienteClient.obtenerClientePorId(requestDTO.getClienteId());
-        HorarioDTO horario = horarioClient.obtenerHorarioPorId(requestDTO.getHorarioId());
+        ClienteDTO cliente = obtenerCliente(requestDTO.getClienteId());
+        HorarioDTO horario = obtenerHorario(requestDTO.getHorarioId());
 
         reserva.setClienteId(requestDTO.getClienteId());
         reserva.setHorarioId(requestDTO.getHorarioId());
@@ -105,16 +128,16 @@ public class ReservaService {
         reserva.setHora(requestDTO.getHora());
 
         Reserva actualizada = reservaRepository.save(reserva);
-        log.info("Reserva {} actualizada correctamente", id);
+        log.info("RESERVA CON ID {} ACTUALIZADA EXITOSAMENTE", id);
         return toResponseDTO(actualizada, cliente, horario);
     }
 
     public void eliminar(Long id) {
-        log.info("Eliminando reserva con id {}", id);
+        log.info("ELIMINANDO RESERVA CON ID: {}", id);
         if (!reservaRepository.existsById(id)) {
-            throw new NoSuchElementException("Reserva con id " + id + " no encontrada");
+            throw new NoSuchElementException("RESERVA CON EL ID " + id + " NO HA SIDO ENCONTRADA");
         }
         reservaRepository.deleteById(id);
-        log.info("Reserva {} eliminada", id);
+        log.info("RESERVA CON ID {} ELIMINADA EXITOSAMENTE", id);
     }
 }
