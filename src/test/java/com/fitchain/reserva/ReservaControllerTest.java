@@ -1,6 +1,7 @@
 package com.fitchain.reserva;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fitchain.reserva.assembler.ReservaModelAssembler;
 import com.fitchain.reserva.config.SecurityConfig;
 import com.fitchain.reserva.controller.ReservaController;
 import com.fitchain.reserva.dto.ClienteDTO;
@@ -9,6 +10,7 @@ import com.fitchain.reserva.dto.ReservaRequestDTO;
 import com.fitchain.reserva.dto.ReservaResponseDTO;
 import com.fitchain.reserva.filter.RolHeaderFilter;
 import com.fitchain.reserva.service.ReservaService;
+import org.springframework.hateoas.EntityModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,9 @@ public class ReservaControllerTest {
     @MockBean
     private ReservaService reservaService;
 
+    @MockBean
+    private ReservaModelAssembler assembler;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -55,6 +60,7 @@ public class ReservaControllerTest {
 
         rResponse = new ReservaResponseDTO(1L, "YOGA", LocalDate.of(2025, 11, 6), LocalTime.of(9, 0), "PENDIENTE", cli, horario);
         rRequest = new ReservaRequestDTO(1L, 1L, "YOGA", LocalDate.of(2025, 11, 6), LocalTime.of(9, 0));
+        when(assembler.toModel(any(ReservaResponseDTO.class))).thenAnswer(inv -> EntityModel.of(inv.getArgument(0)));
     }
 
     @Test
