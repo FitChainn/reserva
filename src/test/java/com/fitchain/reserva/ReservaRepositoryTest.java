@@ -18,7 +18,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @DisplayName("PRUEBAS UNITARIAS DEL REPOSITORY DE RESERVA")
 public class ReservaRepositoryTest {
 

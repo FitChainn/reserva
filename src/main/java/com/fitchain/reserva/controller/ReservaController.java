@@ -1,5 +1,7 @@
 package com.fitchain.reserva.controller;
-
+import com.fitchain.reserva.assembler.ReservaModelAssembler;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.*;
 import com.fitchain.reserva.dto.ReservaRequestDTO;
 import com.fitchain.reserva.dto.ReservaResponseDTO;
 import com.fitchain.reserva.service.ReservaService;
@@ -8,7 +10,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,10 +20,13 @@ import java.util.List;
 @Tag(name = "RESERVAS", description = "GESTION DE LAS RESERVAS")
 @RestController
 @RequestMapping("/v1/reservas")
-@RequiredArgsConstructor
 public class ReservaController {
 
-    private final ReservaService reservaService;
+    @Autowired
+    private ReservaModelAssembler assembler;
+
+    @Autowired
+    private ReservaService reservaService;
 
     @Operation(summary = "CREAR RESERVA", description = "CREAR UNA NUEVA RESERVA. ACCESO: ADMIN, CLIENTE")
     @ApiResponses({
@@ -55,8 +59,9 @@ public class ReservaController {
     })
     @PreAuthorize("hasAnyRole('ADMIN', 'ENTRENADOR', 'CLIENTE')")
     @GetMapping("/{id}")
-    public ResponseEntity<ReservaResponseDTO> obtenerPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(reservaService.obtenerPorId(id));
+    public ResponseEntity<EntityModel<ReservaResponseDTO>> obtenerPorId(@PathVariable Long id) {
+        ReservaResponseDTO reserva = reservaService.obtenerPorId(id);
+        return ResponseEntity.ok(assembler.toModel(reserva));
     }
 
     @Operation(summary = "OBTENER RESERVAS POR CLIENTE", description = "Retorna todas las reservas de un cliente. Acceso: ADMIN, ENTRENADOR, CLIENTE")
