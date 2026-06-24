@@ -1,8 +1,6 @@
 package com.fitchain.reserva.controller;
+
 import com.fitchain.reserva.assembler.ReservaModelAssembler;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.hateoas.*;
 import com.fitchain.reserva.dto.ReservaRequestDTO;
 import com.fitchain.reserva.dto.ReservaResponseDTO;
 import com.fitchain.reserva.service.ReservaService;
@@ -11,12 +9,19 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Tag(name = "RESERVAS", description = "GESTION DE LAS RESERVAS")
 @Slf4j
@@ -39,9 +44,9 @@ public class ReservaController {
     })
     @PreAuthorize("hasAnyRole('ADMIN', 'CLIENTE')")
     @PostMapping
-    public ResponseEntity<ReservaResponseDTO> crear(@Valid @RequestBody ReservaRequestDTO requestDTO) {
+    public ResponseEntity<EntityModel<ReservaResponseDTO>> crear(@Valid @RequestBody ReservaRequestDTO requestDTO) {
         log.info("POST /v1/reservas - CREAR RESERVA clienteId={}", requestDTO.getClienteId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(reservaService.crear(requestDTO));
+        return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(reservaService.crear(requestDTO)));
     }
 
     @Operation(summary = "OBTENER TODAS LAS RESERVAS", description = "Retorna la lista de todas las reservas. Acceso: ADMIN, ENTRENADOR")
@@ -51,9 +56,12 @@ public class ReservaController {
     })
     @PreAuthorize("hasAnyRole('ADMIN', 'ENTRENADOR')")
     @GetMapping
-    public ResponseEntity<List<ReservaResponseDTO>> obtenerTodas() {
+    public ResponseEntity<CollectionModel<EntityModel<ReservaResponseDTO>>> obtenerTodas() {
         log.info("GET /v1/reservas - LISTAR TODAS");
-        return ResponseEntity.ok(reservaService.obtenerTodas());
+        List<EntityModel<ReservaResponseDTO>> reservas = reservaService.obtenerTodas().stream()
+                .map(assembler::toModel).toList();
+        return ResponseEntity.ok(CollectionModel.of(reservas,
+                linkTo(methodOn(ReservaController.class).obtenerTodas()).withSelfRel()));
     }
 
     @Operation(summary = "OBTENER RESERVA POR ID", description = "Retorna una reserva específica por su ID. Acceso: ADMIN, ENTRENADOR, CLIENTE")
@@ -65,8 +73,7 @@ public class ReservaController {
     @GetMapping("/{id}")
     public ResponseEntity<EntityModel<ReservaResponseDTO>> obtenerPorId(@PathVariable Long id) {
         log.info("GET /v1/reservas/{} - BUSCAR POR ID", id);
-        ReservaResponseDTO reserva = reservaService.obtenerPorId(id);
-        return ResponseEntity.ok(assembler.toModel(reserva));
+        return ResponseEntity.ok(assembler.toModel(reservaService.obtenerPorId(id)));
     }
 
     @Operation(summary = "OBTENER RESERVAS POR CLIENTE", description = "Retorna todas las reservas de un cliente. Acceso: ADMIN, ENTRENADOR, CLIENTE")
@@ -76,9 +83,12 @@ public class ReservaController {
     })
     @PreAuthorize("hasAnyRole('ADMIN', 'ENTRENADOR', 'CLIENTE')")
     @GetMapping("/cliente/{clienteId}")
-    public ResponseEntity<List<ReservaResponseDTO>> obtenerPorCliente(@PathVariable Long clienteId) {
+    public ResponseEntity<CollectionModel<EntityModel<ReservaResponseDTO>>> obtenerPorCliente(@PathVariable Long clienteId) {
         log.info("GET /v1/reservas/cliente/{} - BUSCAR POR CLIENTE", clienteId);
-        return ResponseEntity.ok(reservaService.obtenerPorCliente(clienteId));
+        List<EntityModel<ReservaResponseDTO>> reservas = reservaService.obtenerPorCliente(clienteId).stream()
+                .map(assembler::toModel).toList();
+        return ResponseEntity.ok(CollectionModel.of(reservas,
+                linkTo(methodOn(ReservaController.class).obtenerPorCliente(clienteId)).withSelfRel()));
     }
 
     @Operation(summary = "OBTENER RESERVAS POR ESTADO", description = "Retorna reservas filtradas por estado (PENDIENTE, CONFIRMADA, CANCELADA). Acceso: ADMIN, ENTRENADOR")
@@ -88,9 +98,12 @@ public class ReservaController {
     })
     @PreAuthorize("hasAnyRole('ADMIN', 'ENTRENADOR')")
     @GetMapping("/estado/{estado}")
-    public ResponseEntity<List<ReservaResponseDTO>> obtenerPorEstado(@PathVariable String estado) {
+    public ResponseEntity<CollectionModel<EntityModel<ReservaResponseDTO>>> obtenerPorEstado(@PathVariable String estado) {
         log.info("GET /v1/reservas/estado/{} - BUSCAR POR ESTADO", estado);
-        return ResponseEntity.ok(reservaService.obtenerPorEstado(estado));
+        List<EntityModel<ReservaResponseDTO>> reservas = reservaService.obtenerPorEstado(estado).stream()
+                .map(assembler::toModel).toList();
+        return ResponseEntity.ok(CollectionModel.of(reservas,
+                linkTo(methodOn(ReservaController.class).obtenerPorEstado(estado)).withSelfRel()));
     }
 
     @Operation(summary = "ACTUALIZAR RESERVA", description = "Actualiza una reserva existente. Acceso: ADMIN")
@@ -101,11 +114,11 @@ public class ReservaController {
     })
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<ReservaResponseDTO> actualizar(
+    public ResponseEntity<EntityModel<ReservaResponseDTO>> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody ReservaRequestDTO requestDTO) {
         log.info("PUT /v1/reservas/{} - ACTUALIZAR RESERVA", id);
-        return ResponseEntity.ok(reservaService.actualizar(id, requestDTO));
+        return ResponseEntity.ok(assembler.toModel(reservaService.actualizar(id, requestDTO)));
     }
 
     @Operation(summary = "ELIMINAR RESERVA", description = "Elimina una reserva por su ID. Acceso: ADMIN")
@@ -115,9 +128,10 @@ public class ReservaController {
     })
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+    public ResponseEntity<EntityModel<ReservaResponseDTO>> eliminar(@PathVariable Long id) {
         log.info("DELETE /v1/reservas/{} - ELIMINAR RESERVA", id);
+        ReservaResponseDTO reserva = reservaService.obtenerPorId(id);
         reservaService.eliminar(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(assembler.toModel(reserva));
     }
 }
