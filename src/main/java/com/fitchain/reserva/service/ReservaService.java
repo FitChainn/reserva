@@ -1,22 +1,25 @@
 package com.fitchain.reserva.service;
 
-import com.fitchain.reserva.WebClient.ClienteClient;
-import com.fitchain.reserva.WebClient.HorarioClient;
+import com.fitchain.reserva.client.ClienteClient;
+import com.fitchain.reserva.client.HorarioClient;
 import com.fitchain.reserva.dto.ClienteDTO;
 import com.fitchain.reserva.dto.HorarioDTO;
 import com.fitchain.reserva.dto.ReservaRequestDTO;
 import com.fitchain.reserva.dto.ReservaResponseDTO;
+import com.fitchain.reserva.exception.RecursoNoEncontradoException;
+import com.fitchain.reserva.model.EstadoReserva;
 import com.fitchain.reserva.model.Reserva;
 import com.fitchain.reserva.repository.ReservaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 @Slf4j
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class ReservaService {
 
@@ -24,120 +27,115 @@ public class ReservaService {
     private final ClienteClient clienteClient;
     private final HorarioClient horarioClient;
 
-    private ReservaResponseDTO toResponseDTO(Reserva reserva, ClienteDTO cliente, HorarioDTO horario) {
-        ReservaResponseDTO dto = new ReservaResponseDTO();
-        dto.setId(reserva.getId());
-        dto.setActividad(reserva.getActividad());
-        dto.setFecha(reserva.getFecha());
-        dto.setHora(reserva.getHora());
-        dto.setEstado(reserva.getEstado());
-        dto.setCliente(cliente);
-        dto.setHorario(horario);
-        return dto;
-    }
-
-    private ClienteDTO obtenerCliente(Long clienteId) {
-        try {
-            ClienteDTO cliente = clienteClient.obtenerClientePorId(clienteId);
-            log.info("CLIENTE CON ID {} VALIDADO CORRECTAMENTE", clienteId);
-            return cliente;
-        } catch (Exception e) {
-            log.warn("NO SE PUDO OBTENER EL CLIENTE CON ID {}: {}", clienteId, e.getMessage());
-            throw e;
-        }
-    }
-
-    private HorarioDTO obtenerHorario(Long horarioId) {
-        try {
-            HorarioDTO horario = horarioClient.obtenerHorarioPorId(horarioId);
-            log.info("HORARIO CON ID {} VALIDADO CORRECTAMENTE", horarioId);
-            return horario;
-        } catch (Exception e) {
-            log.warn("NO SE PUDO OBTENER EL HORARIO CON ID {}: {}", horarioId, e.getMessage());
-            throw e;
-        }
-    }
-
-    public ReservaResponseDTO crear(ReservaRequestDTO requestDTO) {
-        log.info("CREANDO RESERVA PARA clienteId={}, horarioId={}", requestDTO.getClienteId(), requestDTO.getHorarioId());
-
-        ClienteDTO cliente = obtenerCliente(requestDTO.getClienteId());
-        HorarioDTO horario = obtenerHorario(requestDTO.getHorarioId());
-
-        Reserva reserva = new Reserva();
-        reserva.setClienteId(requestDTO.getClienteId());
-        reserva.setHorarioId(requestDTO.getHorarioId());
-        reserva.setActividad(requestDTO.getActividad());
-        reserva.setFecha(requestDTO.getFecha());
-        reserva.setHora(requestDTO.getHora());
-        reserva.setEstado("PENDIENTE");
-
-        Reserva guardada = reservaRepository.save(reserva);
-        log.info("RESERVA CREADA EXITOSAMENTE CON ID: {}", guardada.getId());
-        return toResponseDTO(guardada, cliente, horario);
-    }
-
+    @Transactional(readOnly = true)
     public List<ReservaResponseDTO> obtenerTodas() {
-        log.info("LISTANDO TODAS LAS RESERVAS");
-        return reservaRepository.findAll().stream()
-                .map(r -> toResponseDTO(r,
-                        clienteClient.obtenerClientePorId(r.getClienteId()),
-                        horarioClient.obtenerHorarioPorId(r.getHorarioId())))
+        log.info("LISTANDO TODAS LAS RESERVAS ACTIVAS");
+        return reservaRepository.findByActivoTrue().stream()
+                .map(this::mapToDto)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public ReservaResponseDTO obtenerPorId(Long id) {
         log.info("BUSCANDO RESERVA CON ID: {}", id);
-        Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("RESERVA CON EL ID " + id + " NO ENCONTRADA"));
-        log.info("RESERVA CON ID {} ENCONTRADA", id);
-        return toResponseDTO(reserva,
-                clienteClient.obtenerClientePorId(reserva.getClienteId()),
-                horarioClient.obtenerHorarioPorId(reserva.getHorarioId()));
+        return mapToDto(buscarActiva(id));
     }
 
+    @Transactional(readOnly = true)
     public List<ReservaResponseDTO> obtenerPorCliente(Long clienteId) {
         log.info("BUSCANDO RESERVAS DEL CLIENTE CON ID: {}", clienteId);
-        ClienteDTO cliente = obtenerCliente(clienteId);
-        return reservaRepository.findByClienteId(clienteId).stream()
-                .map(r -> toResponseDTO(r, cliente, horarioClient.obtenerHorarioPorId(r.getHorarioId())))
+        clienteClient.obtenerPorId(clienteId);
+        return reservaRepository.findByClienteIdAndActivoTrue(clienteId).stream()
+                .map(this::mapToDto)
                 .toList();
     }
 
-    public List<ReservaResponseDTO> obtenerPorEstado(String estado) {
+    @Transactional(readOnly = true)
+    public List<ReservaResponseDTO> obtenerPorEstado(EstadoReserva estado) {
         log.info("BUSCANDO RESERVAS CON ESTADO: {}", estado);
-        return reservaRepository.findByEstado(estado).stream()
-                .map(r -> toResponseDTO(r,
-                        clienteClient.obtenerClientePorId(r.getClienteId()),
-                        horarioClient.obtenerHorarioPorId(r.getHorarioId())))
+        return reservaRepository.findByEstadoAndActivoTrue(estado).stream()
+                .map(this::mapToDto)
                 .toList();
     }
 
-    public ReservaResponseDTO actualizar(Long id, ReservaRequestDTO requestDTO) {
+    public ReservaResponseDTO crear(ReservaRequestDTO dto) {
+        log.info("CREANDO RESERVA PARA clienteId={}, horarioId={}", dto.getClienteId(), dto.getHorarioId());
+
+        ClienteDTO cliente = clienteClient.obtenerPorId(dto.getClienteId());
+        HorarioDTO horario = horarioClient.obtenerPorId(dto.getHorarioId());
+
+        Reserva reserva = new Reserva();
+        copiarDatos(dto, reserva);
+        reserva.setEstado(EstadoReserva.PENDIENTE);
+
+        Reserva guardada = reservaRepository.save(reserva);
+        log.info("RESERVA CREADA CON ID: {}", guardada.getId());
+        return toDto(guardada, cliente, horario);
+    }
+
+    public ReservaResponseDTO actualizar(Long id, ReservaRequestDTO dto) {
         log.info("ACTUALIZANDO RESERVA CON ID: {}", id);
-        Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("RESERVA CON EL ID " + id + " NO HA SIDO ENCONTRADA"));
+        Reserva reserva = buscarActiva(id);
 
-        ClienteDTO cliente = obtenerCliente(requestDTO.getClienteId());
-        HorarioDTO horario = obtenerHorario(requestDTO.getHorarioId());
+        ClienteDTO cliente = clienteClient.obtenerPorId(dto.getClienteId());
+        HorarioDTO horario = horarioClient.obtenerPorId(dto.getHorarioId());
 
-        reserva.setClienteId(requestDTO.getClienteId());
-        reserva.setHorarioId(requestDTO.getHorarioId());
-        reserva.setActividad(requestDTO.getActividad());
-        reserva.setFecha(requestDTO.getFecha());
-        reserva.setHora(requestDTO.getHora());
+        copiarDatos(dto, reserva);
+        return toDto(reservaRepository.save(reserva), cliente, horario);
+    }
 
-        Reserva actualizada = reservaRepository.save(reserva);
-        log.info("RESERVA CON ID {} ACTUALIZADA EXITOSAMENTE", id);
-        return toResponseDTO(actualizada, cliente, horario);
+    public ReservaResponseDTO cambiarEstado(Long id, EstadoReserva nuevoEstado) {
+        log.info("CAMBIANDO ESTADO DE LA RESERVA {} A {}", id, nuevoEstado);
+        Reserva reserva = buscarActiva(id);
+        reserva.setEstado(nuevoEstado);
+        return mapToDto(reservaRepository.save(reserva));
     }
 
     public void eliminar(Long id) {
         log.info("ELIMINANDO RESERVA CON ID: {}", id);
-        if (!reservaRepository.existsById(id)) {
-            throw new NoSuchElementException("RESERVA CON EL ID " + id + " NO HA SIDO ENCONTRADA");
+        Reserva reserva = buscarActiva(id);
+        reserva.setActivo(false);
+        reservaRepository.save(reserva);
+    }
+
+    private Reserva buscarActiva(Long id) {
+        return reservaRepository.findByIdAndActivoTrue(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Reserva", id));
+    }
+
+    private void copiarDatos(ReservaRequestDTO dto, Reserva reserva) {
+        reserva.setClienteId(dto.getClienteId());
+        reserva.setHorarioId(dto.getHorarioId());
+        reserva.setActividad(dto.getActividad());
+        reserva.setFecha(dto.getFecha());
+        reserva.setHora(dto.getHora());
+    }
+
+    private ReservaResponseDTO mapToDto(Reserva reserva) {
+        ClienteDTO cliente = null;
+        HorarioDTO horario = null;
+        try {
+            cliente = clienteClient.obtenerPorId(reserva.getClienteId());
+        } catch (RuntimeException e) {
+            log.warn("NO SE PUDO OBTENER EL CLIENTE {}: {}", reserva.getClienteId(), e.getMessage());
         }
-        reservaRepository.deleteById(id);
-        log.info("RESERVA CON ID {} ELIMINADA EXITOSAMENTE", id);
+        try {
+            horario = horarioClient.obtenerPorId(reserva.getHorarioId());
+        } catch (RuntimeException e) {
+            log.warn("NO SE PUDO OBTENER EL HORARIO {}: {}", reserva.getHorarioId(), e.getMessage());
+        }
+        return toDto(reserva, cliente, horario);
+    }
+
+    private ReservaResponseDTO toDto(Reserva reserva, ClienteDTO cliente, HorarioDTO horario) {
+        return new ReservaResponseDTO(
+                reserva.getId(),
+                reserva.getActividad(),
+                reserva.getFecha(),
+                reserva.getHora(),
+                reserva.getEstado().name(),
+                cliente,
+                horario
+        );
     }
 }

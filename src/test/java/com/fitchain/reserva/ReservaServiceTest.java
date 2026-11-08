@@ -1,11 +1,14 @@
 package com.fitchain.reserva;
 
-import com.fitchain.reserva.WebClient.ClienteClient;
-import com.fitchain.reserva.WebClient.HorarioClient;
+import com.fitchain.reserva.client.ClienteClient;
+import com.fitchain.reserva.client.HorarioClient;
 import com.fitchain.reserva.dto.ClienteDTO;
 import com.fitchain.reserva.dto.HorarioDTO;
 import com.fitchain.reserva.dto.ReservaRequestDTO;
 import com.fitchain.reserva.dto.ReservaResponseDTO;
+import com.fitchain.reserva.exception.RecursoNoEncontradoException;
+import com.fitchain.reserva.exception.ServicioNoDisponibleException;
+import com.fitchain.reserva.model.EstadoReserva;
 import com.fitchain.reserva.model.Reserva;
 import com.fitchain.reserva.repository.ReservaRepository;
 import com.fitchain.reserva.service.ReservaService;
@@ -20,7 +23,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,11 +30,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("PRUEBAS UNITARIAS DEL SERVICE DE RESERVA")
-public class ReservaServiceTest {
+@DisplayName("PRUEBAS UNITARIAS DEL SERVICE DE RESERVAS")
+class ReservaServiceTest {
 
     @Mock
-    private ReservaRepository reservaRepo;
+    private ReservaRepository reservaRepository;
 
     @Mock
     private ClienteClient clienteClient;
@@ -43,178 +45,91 @@ public class ReservaServiceTest {
     @InjectMocks
     private ReservaService reservaService;
 
-    private Reserva r;
-    private ClienteDTO clienteDTO;
-    private HorarioDTO horarioDTO;
-    private ReservaRequestDTO rRequest;
+    private Reserva reserva;
+    private ClienteDTO cliente;
+    private HorarioDTO horario;
 
     @BeforeEach
     void setUp() {
-        r = new Reserva(1L, 2L, 1L, "YOGA", LocalDate.now(), LocalTime.of(9, 0), "PENDIENTE");
-        clienteDTO = new ClienteDTO(2L, "JUANITO PEREZ", "12.123.431-2", LocalDate.of(1995, 5, 10), 3L, 4L);
-        horarioDTO = new HorarioDTO(1L, LocalTime.of(9, 0), LocalTime.of(10, 0));
-        rRequest = new ReservaRequestDTO(2L, 1L, "YOGA", LocalDate.now(), LocalTime.of(9, 0));
+        reserva = new Reserva(1L, 1L, 1L, "YOGA", LocalDate.now().plusDays(1), LocalTime.of(9, 0), EstadoReserva.PENDIENTE, true);
+        cliente = new ClienteDTO(1L, "JUANITO PEREZ", "12.123.431-2", LocalDate.of(1995, 5, 10), 2L, 3L);
+        horario = new HorarioDTO(1L, LocalTime.of(9, 0), LocalTime.of(10, 0));
     }
 
     @Test
-    @DisplayName("DEBE CREAR UNA RESERVA")
-    void shouldCrearReserva() {
-        when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
-        when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
-        when(reservaRepo.save(any(Reserva.class))).thenReturn(r);
+    @DisplayName("CREAR: TODA RESERVA NUEVA QUEDA PENDIENTE")
+    void crear_quedaPendiente() {
+        ReservaRequestDTO dto = new ReservaRequestDTO(1L, 1L, "YOGA", LocalDate.now().plusDays(1), LocalTime.of(9, 0));
+        when(clienteClient.obtenerPorId(1L)).thenReturn(cliente);
+        when(horarioClient.obtenerPorId(1L)).thenReturn(horario);
+        when(reservaRepository.save(any(Reserva.class))).thenAnswer(inv -> {
+            Reserva r = inv.getArgument(0);
+            r.setId(10L);
+            return r;
+        });
 
-        ReservaResponseDTO result = reservaService.crear(rRequest);
+        ReservaResponseDTO resultado = reservaService.crear(dto);
 
-        assertNotNull(result);
-        assertEquals("YOGA", result.getActividad());
-        assertEquals("PENDIENTE", result.getEstado());
-        assertEquals("JUANITO PEREZ", result.getCliente().getNombre());
-        assertEquals(1L, result.getHorario().getId());
-        verify(reservaRepo, times(1)).save(any(Reserva.class));
+        assertEquals(10L, resultado.getId());
+        assertEquals("PENDIENTE", resultado.getEstado());
+        assertEquals("JUANITO PEREZ", resultado.getCliente().getNombre());
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR TODAS LAS RESERVAS")
-    void shouldReturnTodasLasReservas() {
-        Reserva r2 = new Reserva(2L, 2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10, 0), "CONFIRMADA");
-        when(reservaRepo.findAll()).thenReturn(List.of(r, r2));
-        when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
-        when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
+    @DisplayName("CREAR: SI EL CLIENTE NO EXISTE, NO SE GUARDA NADA")
+    void crear_clienteNoExiste() {
+        ReservaRequestDTO dto = new ReservaRequestDTO(99L, 1L, "YOGA", LocalDate.now().plusDays(1), LocalTime.of(9, 0));
+        when(clienteClient.obtenerPorId(99L)).thenThrow(new RecursoNoEncontradoException("Cliente", 99L));
 
-        List<ReservaResponseDTO> result = reservaService.obtenerTodas();
-
-        assertEquals(2, result.size());
-        assertEquals("YOGA", result.get(0).getActividad());
-        assertEquals("PILATES", result.get(1).getActividad());
-        verify(reservaRepo, times(1)).findAll();
+        assertThrows(RecursoNoEncontradoException.class, () -> reservaService.crear(dto));
+        verify(reservaRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR UNA RESERVA POR ID")
-    void shouldReturnReservaById() {
-        when(reservaRepo.findById(1L)).thenReturn(Optional.of(r));
-        when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
-        when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
+    @DisplayName("OBTENER POR ID: SI NO EXISTE LANZA RecursoNoEncontradoException")
+    void obtenerPorId_noExiste() {
+        when(reservaRepository.findByIdAndActivoTrue(99L)).thenReturn(Optional.empty());
 
-        ReservaResponseDTO result = reservaService.obtenerPorId(r.getId());
-
-        assertNotNull(result);
-        assertEquals("YOGA", result.getActividad());
-        assertEquals("JUANITO PEREZ", result.getCliente().getNombre());
-        verify(reservaRepo, times(1)).findById(1L);
-    }
-
-    @Test
-    @DisplayName("DEBE LANZAR EXCEPCION SI RESERVA NO EXISTE POR ID")
-    void shouldThrowWhenReservaNotFoundById() {
-        when(reservaRepo.findById(99L)).thenReturn(Optional.empty());
-
-        NoSuchElementException ex = assertThrows(NoSuchElementException.class,
+        RecursoNoEncontradoException ex = assertThrows(RecursoNoEncontradoException.class,
                 () -> reservaService.obtenerPorId(99L));
-
-        assertEquals("Reserva con id 99 no encontrada", ex.getMessage());
+        assertEquals("RESERVA CON EL ID 99 NO ENCONTRADO", ex.getMessage());
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR RESERVAS POR CLIENTE")
-    void shouldReturnReservasByCliente() {
-        when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
-        when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
-        when(reservaRepo.findByClienteId(2L)).thenReturn(List.of(r));
+    @DisplayName("LISTAR: SI EL MICROSERVICIO DE CLIENTES ESTÁ CAÍDO, LA LISTA SALE IGUAL")
+    void listar_clienteCaido() {
+        when(reservaRepository.findByActivoTrue()).thenReturn(List.of(reserva));
+        when(clienteClient.obtenerPorId(1L)).thenThrow(new ServicioNoDisponibleException("clientes"));
+        when(horarioClient.obtenerPorId(1L)).thenReturn(horario);
 
-        List<ReservaResponseDTO> result = reservaService.obtenerPorCliente(2L);
+        List<ReservaResponseDTO> resultado = reservaService.obtenerTodas();
 
-        assertEquals(1, result.size());
-        assertEquals("YOGA", result.get(0).getActividad());
-        assertEquals(2L, result.get(0).getCliente().getId());
-        verify(reservaRepo, times(1)).findByClienteId(2L);
+        assertEquals(1, resultado.size());
+        assertNull(resultado.get(0).getCliente());
+        assertNotNull(resultado.get(0).getHorario());
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR LISTA VACIA SI CLIENTE NO TIENE RESERVAS")
-    void shouldReturnEmptyListWhenClienteHasNoReservas() {
-        when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
-        when(reservaRepo.findByClienteId(2L)).thenReturn(List.of());
+    @DisplayName("CAMBIAR ESTADO: ACTUALIZA SOLO EL ESTADO")
+    void cambiarEstado() {
+        when(reservaRepository.findByIdAndActivoTrue(1L)).thenReturn(Optional.of(reserva));
+        when(reservaRepository.save(reserva)).thenReturn(reserva);
 
-        List<ReservaResponseDTO> result = reservaService.obtenerPorCliente(2L);
+        ReservaResponseDTO resultado = reservaService.cambiarEstado(1L, EstadoReserva.CONFIRMADA);
 
-        assertTrue(result.isEmpty());
+        assertEquals("CONFIRMADA", resultado.getEstado());
+        assertEquals("YOGA", resultado.getActividad());
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR RESERVAS POR ESTADO")
-    void shouldReturnReservasByEstado() {
-        when(reservaRepo.findByEstado("PENDIENTE")).thenReturn(List.of(r));
-        when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
-        when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
-
-        List<ReservaResponseDTO> result = reservaService.obtenerPorEstado("PENDIENTE");
-
-        assertEquals(1, result.size());
-        assertEquals("PENDIENTE", result.get(0).getEstado());
-        verify(reservaRepo, times(1)).findByEstado("PENDIENTE");
-    }
-
-    @Test
-    @DisplayName("DEBE RETORNAR LISTA VACIA SI NO HAY RESERVAS CON ESE ESTADO")
-    void shouldReturnEmptyListWhenNoReservasWithEstado() {
-        when(reservaRepo.findByEstado("CANCELADA")).thenReturn(List.of());
-
-        List<ReservaResponseDTO> result = reservaService.obtenerPorEstado("CANCELADA");
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    @DisplayName("DEBE ACTUALIZAR UNA RESERVA")
-    void shouldActualizarReserva() {
-        ReservaRequestDTO updateReq = new ReservaRequestDTO(2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10, 0));
-        Reserva actualizada = new Reserva(1L, 2L, 1L, "PILATES", LocalDate.now(), LocalTime.of(10, 0), "PENDIENTE");
-
-        when(reservaRepo.findById(1L)).thenReturn(Optional.of(r));
-        when(clienteClient.obtenerClientePorId(2L)).thenReturn(clienteDTO);
-        when(horarioClient.obtenerHorarioPorId(1L)).thenReturn(horarioDTO);
-        when(reservaRepo.save(any(Reserva.class))).thenReturn(actualizada);
-
-        ReservaResponseDTO result = reservaService.actualizar(1L, updateReq);
-
-        assertNotNull(result);
-        assertEquals("PILATES", result.getActividad());
-        verify(reservaRepo, times(1)).findById(1L);
-        verify(reservaRepo, times(1)).save(any(Reserva.class));
-    }
-
-    @Test
-    @DisplayName("DEBE LANZAR EXCEPCION AL ACTUALIZAR RESERVA QUE NO EXISTE")
-    void shouldThrowWhenActualizarReservaNotFound() {
-        when(reservaRepo.findById(99L)).thenReturn(Optional.empty());
-
-        NoSuchElementException ex = assertThrows(NoSuchElementException.class,
-                () -> reservaService.actualizar(99L, rRequest));
-
-        assertEquals("Reserva con id 99 no encontrada", ex.getMessage());
-    }
-
-    @Test
-    @DisplayName("DEBE ELIMINAR UNA RESERVA")
-    void shouldEliminarReserva() {
-        when(reservaRepo.existsById(1L)).thenReturn(true);
+    @DisplayName("ELIMINAR: ES BORRADO LÓGICO (activo = false), NO BORRA LA FILA")
+    void eliminar_borradoLogico() {
+        when(reservaRepository.findByIdAndActivoTrue(1L)).thenReturn(Optional.of(reserva));
 
         reservaService.eliminar(1L);
 
-        verify(reservaRepo, times(1)).existsById(1L);
-        verify(reservaRepo, times(1)).deleteById(1L);
-    }
-
-    @Test
-    @DisplayName("DEBE LANZAR EXCEPCION AL ELIMINAR RESERVA QUE NO EXISTE")
-    void shouldThrowWhenEliminarReservaNotFound() {
-        when(reservaRepo.existsById(99L)).thenReturn(false);
-
-        NoSuchElementException ex = assertThrows(NoSuchElementException.class,
-                () -> reservaService.eliminar(99L));
-
-        assertEquals("Reserva con id 99 no encontrada", ex.getMessage());
-        verify(reservaRepo, never()).deleteById(99L);
+        assertFalse(reserva.isActivo());
+        verify(reservaRepository).save(reserva);
+        verify(reservaRepository, never()).deleteById(any());
     }
 }

@@ -34,6 +34,10 @@ public class Reserva {
     @Column(nullable = false)
     private LocalTime hora;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String estado;
+    private EstadoReserva estado;
+
+    @Column(nullable = false)
+    private boolean activo = true;
 }

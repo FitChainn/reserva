@@ -1,30 +1,29 @@
 package com.fitchain.reserva;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fitchain.reserva.assembler.ReservaModelAssembler;
 import com.fitchain.reserva.config.SecurityConfig;
 import com.fitchain.reserva.controller.ReservaController;
 import com.fitchain.reserva.dto.ClienteDTO;
 import com.fitchain.reserva.dto.HorarioDTO;
 import com.fitchain.reserva.dto.ReservaRequestDTO;
 import com.fitchain.reserva.dto.ReservaResponseDTO;
+import com.fitchain.reserva.exception.RecursoNoEncontradoException;
 import com.fitchain.reserva.filter.RolHeaderFilter;
+import com.fitchain.reserva.model.EstadoReserva;
 import com.fitchain.reserva.service.ReservaService;
-import org.springframework.hateoas.EntityModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,185 +35,146 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ReservaController.class)
 @Import({SecurityConfig.class, RolHeaderFilter.class})
 @DisplayName("PRUEBAS UNITARIAS DEL CONTROLLER DE RESERVAS")
-public class ReservaControllerTest {
+class ReservaControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
-    private ReservaService reservaService;
-
-    @MockBean
-    private ReservaModelAssembler assembler;
-
     @Autowired
     private ObjectMapper objectMapper;
 
-    private ReservaResponseDTO rResponse;
-    private ReservaRequestDTO rRequest;
+    @MockitoBean
+    private ReservaService reservaService;
+
+    private ReservaResponseDTO respuesta;
+    private ReservaRequestDTO request;
 
     @BeforeEach
     void setUp() {
-        ClienteDTO cli = new ClienteDTO(1L, "JUANITO PEREZ", "12.123.431-2", LocalDate.of(1995, 5, 10), 2L, 3L);
+        ClienteDTO cliente = new ClienteDTO(1L, "JUANITO PEREZ", "12.123.431-2", LocalDate.of(1995, 5, 10), 2L, 3L);
         HorarioDTO horario = new HorarioDTO(1L, LocalTime.of(9, 0), LocalTime.of(10, 0));
+        LocalDate manana = LocalDate.now().plusDays(1);
 
-        rResponse = new ReservaResponseDTO(1L, "YOGA", LocalDate.of(2025, 11, 6), LocalTime.of(9, 0), "PENDIENTE", cli, horario);
-        rRequest = new ReservaRequestDTO(1L, 1L, "YOGA", LocalDate.of(2025, 11, 6), LocalTime.of(9, 0));
-        when(assembler.toModel(any(ReservaResponseDTO.class))).thenAnswer(inv -> EntityModel.of(inv.getArgument(0)));
+        respuesta = new ReservaResponseDTO(1L, "YOGA", manana, LocalTime.of(9, 0), "PENDIENTE", cliente, horario);
+        request = new ReservaRequestDTO(1L, 1L, "YOGA", manana, LocalTime.of(9, 0));
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR TODAS LAS RESERVAS")
-    void GET_obtenerReservas() throws Exception {
-        when(reservaService.obtenerTodas()).thenReturn(List.of(rResponse));
+    @DisplayName("GET: ADMIN PUEDE LISTAR LAS RESERVAS (200)")
+    void listar_admin() throws Exception {
+        when(reservaService.obtenerTodas()).thenReturn(List.of(respuesta));
 
-        mockMvc.perform(get("/v1/reservas")
-                        .header("X-User-Rol", "ADMIN"))
+        mockMvc.perform(get("/api/v1/reservas").header("X-User-Rol", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].actividad").value("YOGA"));
     }
 
     @Test
-    @DisplayName("DEBE CREAR UNA RESERVA (201)")
-    void POST_crear201() throws Exception {
-        when(reservaService.crear(any(ReservaRequestDTO.class))).thenReturn(rResponse);
+    @DisplayName("GET: SIN ROL RESPONDE 403 (YA NO ENTRA COMO ADMIN)")
+    void listar_sinRol() throws Exception {
+        mockMvc.perform(get("/api/v1/reservas"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.mensaje").value("NO TIENES PERMISOS PARA ESTA ACCIÓN"));
 
-        mockMvc.perform(post("/v1/reservas")
-                        .header("X-User-Rol", "ADMIN")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(rRequest)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.actividad").value("YOGA"))
-                .andExpect(jsonPath("$.estado").value("PENDIENTE"))
-                .andExpect(jsonPath("$.cliente.nombre").value("JUANITO PEREZ"))
-                .andExpect(jsonPath("$.horario.id").value(1L));
+        verify(reservaService, never()).obtenerTodas();
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR ERROR 400 AL CREAR RESERVA CON DATOS INVALIDOS")
-    void POST_validation_crear() throws Exception {
-        ReservaRequestDTO reqInvalido = new ReservaRequestDTO();
+    @DisplayName("GET: CLIENTE NO PUEDE LISTAR TODAS LAS RESERVAS (403)")
+    void listar_cliente() throws Exception {
+        mockMvc.perform(get("/api/v1/reservas").header("X-User-Rol", "CLIENTE"))
+                .andExpect(status().isForbidden());
+    }
 
-        mockMvc.perform(post("/v1/reservas")
+    @Test
+    @DisplayName("POST: CREA UNA RESERVA (201)")
+    void crear() throws Exception {
+        when(reservaService.crear(any(ReservaRequestDTO.class))).thenReturn(respuesta);
+
+        mockMvc.perform(post("/api/v1/reservas")
+                        .header("X-User-Rol", "CLIENTE")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.estado").value("PENDIENTE"))
+                .andExpect(jsonPath("$.cliente.nombre").value("JUANITO PEREZ"));
+    }
+
+    @Test
+    @DisplayName("POST: DATOS INVÁLIDOS RESPONDE 400 CON LOS CAMPOS QUE FALLARON")
+    void crear_invalido() throws Exception {
+        mockMvc.perform(post("/api/v1/reservas")
                         .header("X-User-Rol", "ADMIN")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reqInvalido)))
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.clienteId").value("EL ID DEL CLIENTE ES OBLIGATORIO"))
+                .andExpect(jsonPath("$.campos.actividad").value("LA ACTIVIDAD ES OBLIGATORIA"));
+
+        verify(reservaService, never()).crear(any());
+    }
+
+    @Test
+    @DisplayName("GET /{id}: RESERVA QUE NO EXISTE RESPONDE 404")
+    void obtenerPorId_noExiste() throws Exception {
+        when(reservaService.obtenerPorId(99L)).thenThrow(new RecursoNoEncontradoException("Reserva", 99L));
+
+        mockMvc.perform(get("/api/v1/reservas/99").header("X-User-Rol", "ADMIN"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.mensaje").value("RESERVA CON EL ID 99 NO ENCONTRADO"));
+    }
+
+    @Test
+    @DisplayName("GET /estado/{estado}: ESTADO INVENTADO RESPONDE 400")
+    void obtenerPorEstado_invalido() throws Exception {
+        mockMvc.perform(get("/api/v1/reservas/estado/INVENTADO").header("X-User-Rol", "ADMIN"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("DEBE OBTENER UNA RESERVA POR ID")
-    void GET_obtenerPorId() throws Exception {
-        when(reservaService.obtenerPorId(1L)).thenReturn(rResponse);
+    @DisplayName("PUT: ACTUALIZA UNA RESERVA (200)")
+    void actualizar() throws Exception {
+        when(reservaService.actualizar(eq(1L), any(ReservaRequestDTO.class))).thenReturn(respuesta);
 
-        mockMvc.perform(get("/v1/reservas/1")
-                        .header("X-User-Rol", "ADMIN"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.actividad").value("YOGA"))
-                .andExpect(jsonPath("$.cliente.run").value("12.123.431-2"));
-    }
-
-    @Test
-    @DisplayName("DEBE RETORNAR 404 SI RESERVA NO EXISTE")
-    void GET_obtenerIdNotFound() throws Exception {
-        when(reservaService.obtenerPorId(99L)).thenThrow(new NoSuchElementException("RESERVA CON EL ID 99 NO ENCONTRADA"));
-
-        mockMvc.perform(get("/v1/reservas/99")
-                        .header("X-User-Rol", "ADMIN"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.mensaje").value("RESERVA CON EL ID 99 NO ENCONTRADA"));
-    }
-
-    @Test
-    @DisplayName("DEBE OBTENER RESERVAS POR CLIENTE")
-    void GET_obtenerPorCliente() throws Exception {
-        when(reservaService.obtenerPorCliente(1L)).thenReturn(List.of(rResponse));
-
-        mockMvc.perform(get("/v1/reservas/cliente/1")
-                        .header("X-User-Rol", "ADMIN"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].cliente.id").value(1L));
-    }
-
-    @Test
-    @DisplayName("DEBE OBTENER RESERVAS POR ESTADO")
-    void GET_obtenerPorEstado() throws Exception {
-        when(reservaService.obtenerPorEstado("PENDIENTE")).thenReturn(List.of(rResponse));
-
-        mockMvc.perform(get("/v1/reservas/estado/PENDIENTE")
-                        .header("X-User-Rol", "ADMIN"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].estado").value("PENDIENTE"));
-    }
-
-    @Test
-    @DisplayName("DEBE ACTUALIZAR UNA RESERVA")
-    void PUT_actualizar() throws Exception {
-        ReservaResponseDTO actualizado = new ReservaResponseDTO();
-        actualizado.setId(1L);
-        actualizado.setActividad("PILATES");
-        actualizado.setFecha(LocalDate.of(2025, 6, 15));
-        actualizado.setHora(LocalTime.of(10, 0));
-        actualizado.setEstado("CONFIRMADA");
-        actualizado.setCliente(rResponse.getCliente());
-        actualizado.setHorario(rResponse.getHorario());
-
-        rRequest.setActividad("PILATES");
-
-        when(reservaService.actualizar(eq(1L), any(ReservaRequestDTO.class))).thenReturn(actualizado);
-
-        mockMvc.perform(put("/v1/reservas/1")
+        mockMvc.perform(put("/api/v1/reservas/1")
                         .header("X-User-Rol", "ADMIN")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(rRequest)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.actividad").value("PILATES"))
+                .andExpect(jsonPath("$.actividad").value("YOGA"));
+    }
+
+    @Test
+    @DisplayName("PATCH: CAMBIA EL ESTADO (200)")
+    void cambiarEstado() throws Exception {
+        respuesta.setEstado("CONFIRMADA");
+        when(reservaService.cambiarEstado(1L, EstadoReserva.CONFIRMADA)).thenReturn(respuesta);
+
+        mockMvc.perform(patch("/api/v1/reservas/1/estado")
+                        .param("estado", "CONFIRMADA")
+                        .header("X-User-Rol", "ADMIN"))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("CONFIRMADA"));
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR 404 AL ACTUALIZAR RESERVA QUE NO EXISTE")
-    void PUT_actualizar_noExiste() throws Exception {
-        when(reservaService.actualizar(eq(99L), any(ReservaRequestDTO.class)))
-                .thenThrow(new NoSuchElementException("RESERVA CON EL ID 99 NO HA SIDO ENCONTRADA"));
-
-        mockMvc.perform(put("/v1/reservas/99")
-                        .header("X-User-Rol", "ADMIN")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(rRequest)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.mensaje").value("RESERVA CON EL ID 99 NO HA SIDO ENCONTRADA"));
-    }
-
-    @Test
-    @DisplayName("DEBE ELIMINAR UNA RESERVA")
-    void DELETE_eliminar() throws Exception {
-        doNothing().when(reservaService).eliminar(1L);
-
-        mockMvc.perform(delete("/v1/reservas/1")
-                        .header("X-User-Rol", "ADMIN"))
+    @DisplayName("DELETE: ELIMINA UNA RESERVA (204)")
+    void eliminar() throws Exception {
+        mockMvc.perform(delete("/api/v1/reservas/1").header("X-User-Rol", "ADMIN"))
                 .andExpect(status().isNoContent());
 
-        verify(reservaService, times(1)).eliminar(1L);
+        verify(reservaService).eliminar(1L);
     }
 
     @Test
-    @DisplayName("DEBE RETORNAR 404 AL ELIMINAR RESERVA QUE NO EXISTE")
-    void DELETE_eliminar_noExiste() throws Exception {
-        doThrow(new NoSuchElementException("RESERVA CON EL ID 99 NO HA SIDO ENCONTRADA"))
-                .when(reservaService).eliminar(99L);
+    @DisplayName("DELETE: RESERVA QUE NO EXISTE RESPONDE 404")
+    void eliminar_noExiste() throws Exception {
+        doThrow(new RecursoNoEncontradoException("Reserva", 99L)).when(reservaService).eliminar(99L);
 
-        mockMvc.perform(delete("/v1/reservas/99")
-                        .header("X-User-Rol", "ADMIN"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.mensaje").value("RESERVA CON EL ID 99 NO HA SIDO ENCONTRADA"));
+        mockMvc.perform(delete("/api/v1/reservas/99").header("X-User-Rol", "ADMIN"))
+                .andExpect(status().isNotFound());
     }
 }

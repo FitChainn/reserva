@@ -5,7 +5,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -22,17 +21,12 @@ public class RolHeaderFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String rol = request.getHeader("X-User-Rol");
-        String principal = "user";
 
-        if (rol == null || rol.isEmpty()) {
-            rol = "ADMIN";
-            principal = "internal";
+        if (rol != null && !rol.isBlank()) {
+            var auth = new UsernamePasswordAuthenticationToken(
+                    "usuario", null, List.of(new SimpleGrantedAuthority("ROLE_" + rol.toUpperCase())));
+            SecurityContextHolder.getContext().setAuthentication(auth);
         }
-
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + rol));
-        UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(principal, null, authorities);
-        SecurityContextHolder.getContext().setAuthentication(auth);
 
         filterChain.doFilter(request, response);
     }

@@ -1,7 +1,9 @@
 package com.fitchain.reserva.dto;
 
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,18 +16,21 @@ import java.time.LocalTime;
 @AllArgsConstructor
 public class ReservaRequestDTO {
 
-    @NotNull(message = "El clienteId es obligatorio")
+    @NotNull(message = "EL ID DEL CLIENTE ES OBLIGATORIO")
+    @Positive(message = "EL ID DEL CLIENTE DEBE SER MAYOR A CERO")
     private Long clienteId;
 
-    @NotNull(message = "El horarioId es obligatorio")
+    @NotNull(message = "EL ID DEL HORARIO ES OBLIGATORIO")
+    @Positive(message = "EL ID DEL HORARIO DEBE SER MAYOR A CERO")
     private Long horarioId;
 
-    @NotBlank(message = "La actividad es obligatoria")
+    @NotBlank(message = "LA ACTIVIDAD ES OBLIGATORIA")
     private String actividad;
 
-    @NotNull(message = "La fecha es obligatoria")
+    @NotNull(message = "LA FECHA ES OBLIGATORIA")
+    @FutureOrPresent(message = "LA FECHA NO PUEDE SER PASADA")
     private LocalDate fecha;
 
-    @NotNull(message = "La hora es obligatoria")
+    @NotNull(message = "LA HORA ES OBLIGATORIA")
     private LocalTime hora;
 }
